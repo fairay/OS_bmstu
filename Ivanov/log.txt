@@ -1,0 +1,7 @@
+итого 24
+2502893 -rw-r--r-- 2 vsevolod vsevolod   11 ноя 11 19:57 fil.3
+2502893 -rw-r--r-- 2 vsevolod vsevolod   11 ноя 11 19:57 hard
+2502889 -rw-r--r-- 1 vsevolod vsevolod    0 ноя 11 19:59 log.txt
+2502409 -rw-r--r-- 1 vsevolod vsevolod  272 ноя 10 20:19 main.c
+2502380 -rwxr-xr-x 1 vsevolod vsevolod 8432 ноя 10 20:19 main.o
+2502953 lrwxrwxrwx 1 vsevolod vsevolod    5 ноя 11 19:51 soft -> fil.3
