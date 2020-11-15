@@ -1,4 +1,4 @@
-/// Задание 2
+/// Задание 3
 
 // Написать программу по схеме первого задания, но в процессе-предке выполнить системный вызов wait().
 // Убедиться, что в этом случае индитификатор процесса-потомка на 1 больше идентификатора процесса-предка
@@ -29,7 +29,6 @@ int main(void)
 		{
 			printf("Parent:\t\t\t\tPID=%d, PGRP=%d, CHILD1_PID=%d, CHILD2_PID=%d \n", 
 			getpid(), getpgrp(), childPID1, childPID2);
-			
 			for (int i=0; i<2; i++)
 			{
 				int stat;
@@ -42,13 +41,12 @@ int main(void)
 		{
 			printf("Child2:\t\t\t\tPID=%d, PGRP=%d, PARENT_PID=%d \n",
 			getpid(), getpgrp(), getppid());
-					}
+		}
 	}
 	else
 	{
 		printf("Child1:\t\t\t\tPID=%d, PGRP=%d, PARENT_PID=%d \n",
-		getpid(), getpgrp(), getppid());
-		
+		getpid(), getpgrp(), getppid());	
 	}
 	
 	return 0;	

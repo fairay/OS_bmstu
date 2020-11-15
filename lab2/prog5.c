@@ -11,13 +11,18 @@
 #define MSG_SIZE	21
 
 int fd2[2];
+int send_flag = 0;
+
 void send_msg(int sig_n)
 {
-	write(fd2[1], "Parent signal msg", MSG_SIZE);
-	printf("Parent message sent\n");
-	kill(0, SIGUSR1);
+	send_flag = 1;
+	if (getpid() == getpgrp()) 
+	{
+		write(fd2[1], "Parent signal msg", MSG_SIZE);
+		printf("Parent message sent\n");	
+	}
 }
-void get_msg(int sig_n)
+void get_msg()
 {
 	char res[MSG_SIZE];
 	read(fd2[0], res, MSG_SIZE);
@@ -26,6 +31,9 @@ void get_msg(int sig_n)
 
 int main(void)
 {
+	signal(SIGINT, SIG_IGN);
+	signal(SIGINT, send_msg);
+	
 	int fd[2];
 	pid_t childPID1, childPID2;
 	
@@ -57,13 +65,16 @@ int main(void)
 		printf("Child 1:\t\t\tPID=%d, PGRP=%d, PARENT_PID=%d \n", getpid(), getpgrp(), getppid());
 		write(fd[1], "Data from child №1", MSG_SIZE);
 		printf("Child 1 sent message\n");
-		
-		signal(SIGUSR1, get_msg);
-		signal(SIGINT, SIG_IGN);
-		sleep(3);
-		
 		close(fd[1]);
-		close(fd[0]);
+		
+		sleep(4);
+		
+		if (send_flag) 
+			get_msg();
+		else
+			printf("\nChild 1 did not get message\n");
+		
+		close(fd2[0]);
 		return 0;
 	}
 	
@@ -92,10 +103,6 @@ int main(void)
 	close(fd2[0]);
 	
 	printf("Parent:\t\t\t\tPID=%d, PGRP=%d, CHILD1_PID=%d, CHILD2_PID=%d \n", getpid(), getpgrp(), childPID1, childPID2);
-	
-	signal(SIGUSR1, SIG_IGN);
-	signal(SIGALRM, send_msg);
- 	alarm(2);
 
 	printf("Parent is waiting\n");
 	int status, pid;
