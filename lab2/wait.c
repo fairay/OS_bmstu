@@ -34,7 +34,19 @@ int main(void)
 				int stat;
 				pid_t child;
 				child = wait(&stat);
-				printf("%d finished, status=%d. Parent PID:%d\n", child, stat, getpid());
+				if (child == -1)
+				{
+					printf("Wait returned with error\n");
+					return 1;
+				}
+				else
+				{
+					printf("%d finished, status=%d. Parent PID:%d\t\t\t", child, stat, getpid());
+					if (WIFEXITED(stat))
+						printf("Child exited with code %d\n", WEXITSTATUS(stat));
+					else 
+						printf("Child terminated abnormally\n");
+				}
 			}
 		}
 		else
