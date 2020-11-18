@@ -54,7 +54,7 @@ int main(void)
 		{
 			printf("Child2:\t\t\t\tPID=%d, PGRP=%d, PARENT_PID=%d \n",
 			getpid(), getpgrp(), getppid());
-			int stat = execl("/bin/pwd", "pwd", NULL);
+			int stat = execl("demo2.o", " ", NULL);
 			if (stat == -1)
 			{
 				printf("Execl error\n");
@@ -66,7 +66,7 @@ int main(void)
 	{
 		printf("Child1:\t\t\t\tPID=%d, PGRP=%d, PARENT_PID=%d \n",
 		getpid(), getpgrp(), getppid());
-		int stat = execl("/bin/pwd", "pwd", NULL);
+		int stat = execl("demo1.o", " ", NULL);
 		if (stat == -1)
 		{
 			printf("Execl error\n");
