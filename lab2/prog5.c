@@ -11,27 +11,11 @@
 #define MSG_SIZE	21
 typedef void (*sighandler_t)(int);
 
-int fd2[2];
 int send_flag = 0;
 
 void send_msg(int sig_n)
 {
 	send_flag = 1;
-	if (getpid() == getpgrp()) 
-	{
-		write(fd2[1], "Parent signal msg", MSG_SIZE);
-		printf("Parent message sent\n");	
-	}
-}
-int get_msg()
-{
-	char res[MSG_SIZE];
-	ssize_t code = read(fd2[0], res, MSG_SIZE);
-	if (code == -1)
-		printf("Read error\n");
-	else
-		printf("Child 1 got parent message: %s\n", res);
-	return code == -1;
 }
 
 int main(void)
@@ -47,12 +31,6 @@ int main(void)
 	pid_t childPID1, childPID2;
 	
 	int pipe_code = pipe(fd);
-    if (pipe_code < 0)
-    {
-        perror("Can\'t create pipe\n");
-		return -1;
-    }
-    pipe_code = pipe(fd2);
     if (pipe_code < 0)
     {
         perror("Can\'t create pipe\n");
@@ -82,11 +60,11 @@ int main(void)
 		sleep(4);
 		
 		if (send_flag) 
-			if (get_msg())	return -1;
+			printf("Child 1 got message form parent\n");
 		else
 			printf("\nChild 1 did not get message\n");
 		
-		if (close(fd[1]) || close(fd[0]) || close(fd2[0]) || close(fd2[1]))
+		if (close(fd[1]) || close(fd[0]))
 		{
 			printf("Close error\n");
 			return -1;
@@ -110,7 +88,7 @@ int main(void)
 		else
 			printf("Child 2 sent message\n");
 	
-		if (close(fd[1]) || close(fd[0]) || close(fd2[0]) || close(fd2[1]))
+		if (close(fd[1]) || close(fd[0]))
 		{
 			printf("Close error\n");
 			return -1;
@@ -159,7 +137,7 @@ int main(void)
 	printf("First message: %s\n", res1);
 	printf("Second message: %s\n", res2);
 	
-	if (close(fd[1]) || close(fd[0]) || close(fd2[0]) || close(fd2[1]))
+	if (close(fd[1]) || close(fd[0]))
 	{
 		printf("Close error\n");
 		return -1;

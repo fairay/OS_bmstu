@@ -3,8 +3,8 @@
 
 int main(void)
 {
-	int childPID;
-	if ((childPID = fork()) == -1)
+	int childPID = fork();
+	if (childPID == -1)
 	{
 		perror("Can't fork\n");
 		return 1;
@@ -17,3 +17,4 @@ int main(void)
 			printf("%d ", getpid());
 	return 0;
 }
+
