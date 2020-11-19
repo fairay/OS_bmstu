@@ -60,9 +60,9 @@ int main(void)
 		sleep(4);
 		
 		if (send_flag) 
-			printf("Child 1 got message form parent\n");
+			printf("\nChild 1: Ctrl-C flag was setted\n");
 		else
-			printf("\nChild 1 did not get message\n");
+			printf("\nChild 1: Ctrl-C flag was not setted\n");
 		
 		if (close(fd[1]) || close(fd[0]))
 		{
