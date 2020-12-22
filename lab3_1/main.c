@@ -7,12 +7,13 @@ int rand_dt()
 
 void prod_func(size_t b_size, int isem_descry, char* buf, int my_n)
 {
-    srand(time(NULL) + my_n*100);
+    srand(time(NULL) + (my_n+1)*100);
     struct sembuf pre_sem[2] = { {EMPT_SEMN, -1, SEM_UNDO},
                                  {BIN_SEMN, -1, SEM_UNDO} };
     struct sembuf post_sem[2] = { {FULL_SEMN, 1, SEM_UNDO},
                                   {BIN_SEMN, 1, SEM_UNDO} };
-    char cur_letter = 'A';
+
+    sleep(rand_dt());
     while (1)
     {
         if (semop(isem_descry, pre_sem, 2) == -1)
@@ -21,10 +22,12 @@ void prod_func(size_t b_size, int isem_descry, char* buf, int my_n)
             exit(1);
         }
 
-        buf[buf[1]] = cur_letter;
-        if (++buf[1] >= b_size)   
-            buf[1] = 2;
-        printf("Producer №%d wrote:\t %c\n", my_n+1, cur_letter);
+        buf[buf[2]] = buf[0];
+        printf("Producer №%d wrote:\t %c\n", my_n+1, buf[0]);
+        if (++buf[2] >= b_size)   
+            buf[2] = 3;
+        if (++buf[0] > 'Z')
+            buf[0] = 'A';
 
         if (semop(isem_descry, post_sem, 2) == -1)
         {
@@ -32,8 +35,6 @@ void prod_func(size_t b_size, int isem_descry, char* buf, int my_n)
             exit(1);
         }
 
-        if (++cur_letter > 'Z')
-            cur_letter = 'A';
         sleep(rand_dt());
     }
     
@@ -41,12 +42,13 @@ void prod_func(size_t b_size, int isem_descry, char* buf, int my_n)
 
 void cons_func(size_t b_size, int isem_descry, char* buf, int my_n)
 {
-    srand(time(NULL) + my_n*10);
+    srand(time(NULL) - (my_n+1)*100);
     struct sembuf pre_sem[2] = { {FULL_SEMN, -1, SEM_UNDO},
                                  {BIN_SEMN, -1, SEM_UNDO} };
     struct sembuf post_sem[2] = { {EMPT_SEMN, 1, SEM_UNDO},
                                   {BIN_SEMN, 1, SEM_UNDO} };
     char cur_letter;
+    sleep(rand_dt());
     while (1)
     {
         if (semop(isem_descry, pre_sem, 2) == -1)
@@ -55,10 +57,10 @@ void cons_func(size_t b_size, int isem_descry, char* buf, int my_n)
             exit(1);
         }
 
-        cur_letter = buf[buf[0]];
+        cur_letter = buf[buf[1]];
         printf("Consumer №%d read:\t\t %c\n", my_n+1, cur_letter);
-        if (++buf[0] >= b_size)   
-            buf[0] = 2;
+        if (++buf[1] >= b_size)   
+            buf[1] = 3;
 
         if (semop(isem_descry, post_sem, 2) == -1)
         {
@@ -104,8 +106,9 @@ int main(void)
         return 1;
     }
 
-    addr[0] = (char)2;
-    addr[1] = (char)2;
+    addr[0] = 'A';
+    addr[1] = (char)3;
+    addr[2] = (char)3;
 
     printf("> Start of simulation\n");
     for (size_t i=0; i<PROC_N; i++)

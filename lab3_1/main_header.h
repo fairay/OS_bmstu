@@ -17,7 +17,7 @@
 #define BIN_SEMN    2
 
 #define QUEUE_SIZE  5
-#define BUF_SIZE    2 + QUEUE_SIZE
+#define BUF_SIZE    3 + QUEUE_SIZE
 #define PROC_N      3
 
 #endif // MAIN_H
