@@ -12,10 +12,14 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define ACT_W_SEMN   0
-#define ACT_R_SEMN   1
-#define WAI_W_SEMN   2
-#define WAI_R_SEMN   3
+#define SEMN            6
+#define ACT_W_SEMN      0
+#define ACT_R_SEMN      1
+#define WAI_W_SEMN      2
+#define WAI_R_SEMN      3
+
+#define CAN_W_SEMN      4
+#define CAN_R_SEMN      5
 
 
 #define WRITER_N    2
