@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <errno.h>
+#include <time.h>
 
 #include <sys/resource.h>
 #include <sys/stat.h> 
@@ -53,7 +54,6 @@ void deamonize(const char* cmd)
     if (rl.rlim_cur == RLIM_INFINITY)
         rl.rlim_max = 1024;
     for (i = 0; i<rl.rlim_max; i++)
-    // for (i = 3; i<rl.rlim_max; i++)
         close(i);
     
     fd0 = open("/dev/null", O_RDWR);
@@ -61,14 +61,12 @@ void deamonize(const char* cmd)
     fd2 = dup(0);
     
     openlog(cmd, LOG_CONS, LOG_DAEMON);
-    printf("WORK\n");
     
     if (fd0 != 0 || fd1 != 1 || fd2 != 2)
     {
         syslog(LOG_ERR, "error file descriptors %d %d %d", fd0, fd1, fd2);
         exit(1);
     }
-    printf("WORK0\n");
 }
 
 int lockfile(int fd)
@@ -94,10 +92,14 @@ int already_running(void)
         exit(1);
     }
 
-    flock(fd, LOCK_EX | LOCK_UN);
-    if (errno == EWOULDBLOCK) {
+    if (lockfile(fd) < 0)
+    {
+        if (errno == EACCES || errno == EAGAIN)
+        {
+            close(fd);
+            return 1;
+        }
         syslog(LOG_ERR, "%s blocking failed", LOCKFILE);
-        close(fd);
         exit(1);
     }
 
@@ -134,7 +136,6 @@ void* thr_fn(void* arg)
             syslog(LOG_INFO, "Got unknown signal");
         }
     }
-    printf("EXIT!\n");
     return 0;
 }
 
@@ -152,42 +153,38 @@ int main(int argc, char *argv[])
     else
         cmd = argv[0];
     
-    // deamonize(cmd);
-    printf("BEGIN\n");
-    deamonize("MY DEAMON");
+    deamonize(cmd);
 
     if (already_running())
     {
         syslog(LOG_ERR, "deamon is already running");
         exit(1);
     }
-    printf("WORK1\n");
 
-    sa.sa_handler = SIG_DFL;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGHUP, &sa, NULL) == -1)
-        perror("It's impossible to recover SIG_DEL for SIGHUP \n");
+    // sa.sa_handler = SIG_DFL;
+    // sigemptyset(&sa.sa_mask);
+    // sa.sa_flags = 0;
+    // if (sigaction(SIGHUP, &sa, NULL) == -1)
+    //     perror("It's impossible to recover SIG_DEL for SIGHUP \n");
 
-    printf("WORK2\n");
-    
+
     sigfillset(&mask);
     err = pthread_sigmask(SIG_BLOCK, &mask, NULL);
     if (err)
         perror("SIG_BLOCK processing error \n");
     
-    printf("WORK3\n");
-
     err = pthread_create(&tid, NULL, thr_fn, 0);
     if (err)
         perror("It's imposible to create a thread \n");
     
-    printf("WORK4\n");
     ///
     syslog(LOG_INFO, "Deamon is running");
     ///
 
-    printf("WORK5\n");
-
-    exit(0);
+    while (1)
+    {
+        sleep(3);
+    }
+    
+    return 0;
 }
