@@ -37,7 +37,7 @@ void deamonize(const char* cmd)
         perror("%s: fork call error \n");
     else if (pid != 0)
     {
-        printf("%d pid\n", pid);
+        printf("DAEMON PID: %d\n", pid);
         exit(0);
     }
     setsid();
@@ -92,7 +92,7 @@ int already_running(void)
         exit(1);
     }
 
-    if (lockfile(fd) < 0)
+    if (lockfile(fd) == -1)
     {
         if (errno == EACCES || errno == EAGAIN)
         {
@@ -114,7 +114,6 @@ int already_running(void)
 void* thr_fn(void* arg)
 {
     int err, signo;
-    syslog(LOG_INFO, "Thread is running");
 
     for (;;)
     {
@@ -125,10 +124,11 @@ void* thr_fn(void* arg)
             exit(1);
         }
 
+        time_t ttime = time(NULL);
         switch (signo)
         {
         case SIGHUP:
-            syslog(LOG_INFO, "Got SIGHUP");
+            syslog(LOG_INFO, "LOGIN: %s; TIME: %s", getlogin(), asctime(localtime(&ttime)));
             break;
         case SIGTERM:
             syslog(LOG_INFO, "Got SIGTERM, exiting");
@@ -166,23 +166,33 @@ int main(int argc, char *argv[])
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     if (sigaction(SIGHUP, &sa, NULL) == -1)
-        perror("It's impossible to recover SIG_DEL for SIGHUP \n");
-
-
+    {
+        syslog(LOG_ERR, "It's impossible to recover SIG_DFL for SIGHUP");
+        exit(1);
+    }
+    
     sigfillset(&mask);
     err = pthread_sigmask(SIG_BLOCK, &mask, NULL);
     if (err)
-        perror("SIG_BLOCK processing error \n");
-    
+    {
+        syslog(LOG_ERR, "SIG_BLOCK processing error");
+        exit(1);
+    }
+
     err = pthread_create(&tid, NULL, thr_fn, 0);
     if (err)
-        perror("It's imposible to create a thread \n");
-    
-    syslog(LOG_INFO, "Deamon is running");
+    {
+        syslog(LOG_ERR, "It's imposible to create a thread");
+        exit(1);
+    }
 
+    syslog(LOG_INFO, "Deamon is running");
     err = pthread_join(tid, NULL);
     if (err)
-        perror("It's imposible to join the thread \n");
+    {
+        syslog(LOG_ERR, "It's imposible to join the thread");
+        exit(1);
+    }
 
     syslog(LOG_INFO, "Deamon stoped");
     return 0;
