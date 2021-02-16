@@ -106,7 +106,7 @@ int already_running(void)
     ftruncate(fd, 0);
     sprintf(buf, "%ld", (long)getpid());
     write(fd, buf, strlen(buf) + 1);
-     
+
     return 0;
 }
 
@@ -114,6 +114,7 @@ int already_running(void)
 void* thr_fn(void* arg)
 {
     int err, signo;
+    syslog(LOG_INFO, "Thread is running");
 
     for (;;)
     {
@@ -161,11 +162,11 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    // sa.sa_handler = SIG_DFL;
-    // sigemptyset(&sa.sa_mask);
-    // sa.sa_flags = 0;
-    // if (sigaction(SIGHUP, &sa, NULL) == -1)
-    //     perror("It's impossible to recover SIG_DEL for SIGHUP \n");
+    sa.sa_handler = SIG_DFL;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if (sigaction(SIGHUP, &sa, NULL) == -1)
+        perror("It's impossible to recover SIG_DEL for SIGHUP \n");
 
 
     sigfillset(&mask);
@@ -177,14 +178,12 @@ int main(int argc, char *argv[])
     if (err)
         perror("It's imposible to create a thread \n");
     
-    ///
     syslog(LOG_INFO, "Deamon is running");
-    ///
 
-    while (1)
-    {
-        sleep(3);
-    }
-    
+    err = pthread_join(tid, NULL);
+    if (err)
+        perror("It's imposible to join the thread \n");
+
+    syslog(LOG_INFO, "Deamon stoped");
     return 0;
 }
