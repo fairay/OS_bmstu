@@ -138,12 +138,7 @@ void* thr_fn(void* arg)
 
 int main(int argc, char *argv[])
 {
-    int err;
-    pthread_t tid;
-    char *cmd;
-    struct sigaction sa;
-
-    cmd = strrchr(argv[0], '/');
+    char* cmd = strrchr(argv[0], '/');
     if (cmd)
         cmd++;
     else
@@ -157,10 +152,14 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    int err;
+    struct sigaction sa;
+
     sa.sa_handler = SIG_DFL;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
-    if (sigaction(SIGHUP, &sa, NULL) == -1)
+    err = sigaction(SIGHUP, &sa, NULL);
+    if (err == -1)
     {
         syslog(LOG_ERR, "It's impossible to recover SIG_DFL for SIGHUP");
         exit(1);
@@ -174,6 +173,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    pthread_t tid;
     err = pthread_create(&tid, NULL, thr_fn, 0);
     if (err)
     {
@@ -189,6 +189,5 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    syslog(LOG_INFO, "Deamon stoped");
     return 0;
 }

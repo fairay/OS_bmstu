@@ -90,11 +90,11 @@ void deamonize(const char* cmd)
         close(i);
     
     /* 6.
-     Перенаправление потоков вывода на null устройство
+     Перенаправление потоков вывода на пустое устройство
     */
     int fd0, fd1, fd2;
-    fd0 = open("/dev/null", O_RDWR);
-    fd1 = dup(0);
+    fd0 = open("/dev/null", O_RDWR);        // Открытие файла пустого устройства
+    fd1 = dup(0);                           // Дублирование дескриптора файла fd0
     fd2 = dup(0);
     
     if (fd0 != 0 || fd1 != 1 || fd2 != 2)
@@ -206,46 +206,49 @@ void* thr_fn(void* arg)
 }
 
 
+
 int main(int argc, char *argv[])
 {
-    int err;
-    pthread_t tid;
-    char *cmd;
-    struct sigaction sa;
-
-    cmd = strrchr(argv[0], '/');
+    // Вычленение из имени файла из его пути
+    char* cmd = strrchr(argv[0], '/');
     if (cmd)
         cmd++;
     else
         cmd = argv[0];
     
+    // Создание демона
     deamonize(cmd);
 
+    // Проверка на наличие другого демона
     if (already_running())
     {
         syslog(LOG_ERR, "deamon is already running");
         exit(1);
     }
 
-    sa.sa_handler = SIG_DFL;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    if (sigaction(SIGHUP, &sa, NULL) == -1)
+    int err;
+    struct sigaction sa;
+
+    sa.sa_handler = SIG_DFL;    // стандартное поведение SIGHUP
+    sigemptyset(&sa.sa_mask);   // никакие сигналы не игнорируются 
+    sa.sa_flags = 0;            // флаги не выставленны, стандартное поведение
+    err = sigaction(SIGHUP, &sa, NULL); // вызов изменения поведения SIGHUP с SIG_IGN на SIG_DFL
+    if (err == -1)
     {
         syslog(LOG_ERR, "It's impossible to recover SIG_DFL for SIGHUP");
         exit(1);
     }
     
-    // sigfillset - ВСЕ сигналы входят в mask
-    sigfillset(&mask);
-    err = pthread_sigmask(SIG_BLOCK, &mask, NULL);
+    sigfillset(&mask); // ВСЕ сигналы входят в mask
+    err = pthread_sigmask(SIG_BLOCK, &mask, NULL);  // Блокировка всех сигналов в данном поток
     if (err)
     {
         syslog(LOG_ERR, "SIG_BLOCK processing error");
         exit(1);
     }
 
-    err = pthread_create(&tid, NULL, thr_fn, 0);
+    pthread_t tid;
+    err = pthread_create(&tid, NULL, thr_fn, 0); // Создание потока для обработки сигналов
     if (err)
     {
         syslog(LOG_ERR, "It's imposible to create a thread");
@@ -253,13 +256,12 @@ int main(int argc, char *argv[])
     }
 
     syslog(LOG_INFO, "Deamon is running");
-    err = pthread_join(tid, NULL);
+    err = pthread_join(tid, NULL);      // Ожидание завершения потока 
     if (err)
     {
         syslog(LOG_ERR, "It's imposible to join the thread");
         exit(1);
     }
 
-    syslog(LOG_INFO, "Deamon stoped");
     return 0;
 }
