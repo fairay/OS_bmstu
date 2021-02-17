@@ -14,11 +14,12 @@
 #include <sys/stat.h> 
 #include <sys/file.h>
 
+// LOCKMODE - чтение для пользователя, группы и остальных, запись для пользователя
 #define LOCKFILE "/var/run/daemon.pid"
 #define LOCKMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 
-sigset_t mask;
+sigset_t mask; // Сигнальная маска
 
 // Функция daemonize создаёт демона
 void deamonize(const char* cmd)
@@ -108,6 +109,7 @@ void deamonize(const char* cmd)
     openlog(cmd, LOG_CONS, LOG_DAEMON);
 }
 
+// lockfile пробует установить совместную блокировку на файл
 int lockfile(int fd)
 {
     struct flock fl;
@@ -119,50 +121,67 @@ int lockfile(int fd)
     // установка блокировки
     // в случае неудачи (ЗАНЯТО!) fcntl вернёт -1
     return fcntl(fd, F_SETLK, &fl); 
-
 }
 
+// already_running проверяет наличие другого запущенного демона
+// с помощью блокировки LOCKFILE 
 int already_running(void)
 {
-    int fd;
-    char buf[16];
+    // Открытие файла LOCKFILE
+    // O_RDWR - режим чтения и записи
+    // O_CREAT - создание файла, если он не существует
+    int fd = open(LOCKFILE, O_RDWR | O_CREAT, LOCKMODE);
 
-    fd = open(LOCKFILE, O_RDWR | O_CREAT, LOCKMODE);
-
+    // Файл не открылся
     if (fd < 0)
     {
         syslog(LOG_ERR, "%s open failed", LOCKFILE);
         exit(1);
     }
 
+    // Попытка установить блокировку
     if (lockfile(fd) == -1)
     {
+        /// Не повезло, не повезло
+
+        // EACCES, EAGAIN - файл заблокирован другм процессом-демоном
         if (errno == EACCES || errno == EAGAIN)
         {
             close(fd);
             return 1;
         }
+
+        // На случай непредвиденной ошибки
         syslog(LOG_ERR, "%s blocking failed", LOCKFILE);
         exit(1);
     }
 
+    /// Повезло, повезло, файл не заблокирован другим процессом
+    char buf[16];
+
+    // Усечение размера файла до 0 байт
     ftruncate(fd, 0);
+    // Печать PID в buf, а buf в LOCKFILE
     sprintf(buf, "%ld", (long)getpid());
     write(fd, buf, strlen(buf) + 1);
 
     return 0;
 }
 
-
+// Функция потока
+// Обрабатывает сигналы поступающие демону
 void* thr_fn(void* arg)
 {
     int err, signo;
 
     for (;;)
     {
+        // Ожидание сигнала заданного маской
+        // Согласно маске обрабатываются любые сигналы
         err = sigwait(&mask, &signo);
         if (err)
         {
+            // Ошибка при ожидании
             syslog(LOG_ERR, "sigwait call error");
             exit(1);
         }
@@ -171,12 +190,15 @@ void* thr_fn(void* arg)
         switch (signo)
         {
         case SIGHUP:
+            // Вывод логина и текущего времени в log
             syslog(LOG_INFO, "LOGIN: %s; TIME: %s", getlogin(), asctime(localtime(&ttime)));
             break;
         case SIGTERM:
+            // Завершение демона
             syslog(LOG_INFO, "Got SIGTERM, exiting");
             exit(0);
         default:
+            // Другие сигналы не обрабатываются 
             syslog(LOG_INFO, "Got unknown signal");
         }
     }
@@ -214,6 +236,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
+    // sigfillset - ВСЕ сигналы входят в mask
     sigfillset(&mask);
     err = pthread_sigmask(SIG_BLOCK, &mask, NULL);
     if (err)

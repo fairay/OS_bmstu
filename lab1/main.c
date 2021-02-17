@@ -78,10 +78,7 @@ int lockfile(int fd)
 
 int already_running(void)
 {
-    int fd;
-    char buf[16];
-
-    fd = open(LOCKFILE, O_RDWR | O_CREAT, LOCKMODE);
+    int fd = open(LOCKFILE, O_RDWR | O_CREAT, LOCKMODE);
 
     if (fd < 0)
     {
@@ -100,6 +97,7 @@ int already_running(void)
         exit(1);
     }
 
+    char buf[16];
     ftruncate(fd, 0);
     sprintf(buf, "%ld", (long)getpid());
     write(fd, buf, strlen(buf) + 1);
