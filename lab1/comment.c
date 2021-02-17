@@ -20,10 +20,27 @@
 
 sigset_t mask;
 
+// Функция daemonize создаёт демона
 void deamonize(const char* cmd)
 {
-    umask(0);
+    /// 6 шагов к созданию демона
 
+    /* 1.
+     Вызов umask для сброса режима создания файлов в 0
+     Биты в маске режима создания могут препятствовать
+     созданию файлов демоном.
+    */
+    umask(0);
+    
+    /* 2.
+     Вызов fork, завершение родительского процесса
+     На то есть 2 причины:
+     * Если процесс был запущен как команда оболочки, 
+       то будет считаться, что команда выполнена
+     * Новый процесс будет в группе родителя, но точно
+       не будет лидером этой группы (т.к. будет иметь другой PID),
+       что позволяет вызвать setsid.
+    */
     pid_t pid = fork();
     if (pid < 0)
         perror("%s: fork call error \n");
@@ -32,8 +49,18 @@ void deamonize(const char* cmd)
         printf("DAEMON PID: %d\n", pid);
         exit(0);
     }
+
+    /* 3.
+     Создание новой сессии.
+     Новый процесс:
+      * лидер сессии и группы
+      * не имеет управляющего терминала
+     Ошибка в setdis возникает только когда процесс - лидер группы,
+     (что исключено после fork())
+    */
     setsid();
 
+    // Игнорирование сигнала SIGHUP
     struct sigaction sa;
     sa.sa_handler = SIG_IGN;
     sigemptyset(&sa.sa_mask);
@@ -41,39 +68,58 @@ void deamonize(const char* cmd)
     if (sigaction(SIGHUP, &sa, NULL) == -1)
         perror("It's impossible to ignore SIGHUP \n");
 
+    /* 4.
+     Назначение корневого каталога текущим (отмонтирование текущей ФС).
+     На случай, если демон был запущен из монтированной файловой системы.
+    */
     if (chdir("/") < 0)
         perror("It's imposible to change work directory to / \n");
-
+    
+    /* 5.
+     * Получение максимального возможного номера файлового дискриптора
+     * В случае, если текущего ограничения нет, установить его на 1024 (максимум ОС)
+     * Закрытие всех потенциальных файловых дескрипторов 
+    */
     struct rlimit rl;
     if (getrlimit(RLIMIT_NOFILE, &rl) == -1)
-        perror("It's impossible to get max number of file descriptor \n");    
+        perror("It's impossible to get max number of file descriptor \n");
     if (rl.rlim_cur == RLIM_INFINITY)
         rl.rlim_max = 1024;
     for (int i = 0; i<rl.rlim_max; i++)
         close(i);
     
+    /* 6.
+     Перенаправление потоков вывода на null устройство
+    */
     int fd0, fd1, fd2;
     fd0 = open("/dev/null", O_RDWR);
     fd1 = dup(0);
     fd2 = dup(0);
-    
-    openlog(cmd, LOG_CONS, LOG_DAEMON);
     
     if (fd0 != 0 || fd1 != 1 || fd2 != 2)
     {
         syslog(LOG_ERR, "error file descriptors %d %d %d", fd0, fd1, fd2);
         exit(1);
     }
+
+    // Инициализация файла журнала
+    // LOG_CONS - вывод в консоль в случае ошибки при логировании
+    // LOG_DAEMON - процесс-демон => логируется в daemon.log
+    openlog(cmd, LOG_CONS, LOG_DAEMON);
 }
 
 int lockfile(int fd)
 {
     struct flock fl;
-    fl.l_type = F_WRLCK;
-    fl.l_start = 0;
-    fl.l_whence = SEEK_SET;
-    fl.l_len = 0;
-    return fcntl(fd, F_SETLK, &fl);
+    fl.l_type = F_WRLCK;            // тип блокировки - чтение/запись
+    fl.l_start = 0;                 // смещение от блокировки = 0
+    fl.l_whence = SEEK_SET;         // блокировка с начала файла
+    fl.l_len = 0;                   // блокируются все байты файла
+
+    // установка блокировки
+    // в случае неудачи (ЗАНЯТО!) fcntl вернёт -1
+    return fcntl(fd, F_SETLK, &fl); 
+
 }
 
 int already_running(void)
