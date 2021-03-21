@@ -18,7 +18,7 @@ typedef int info_print_t(const char *, int);
 void print_indent(int n)
 {
 	for (int i=0; i<n; i++)
-			printf("----");
+		printf("----");
 }
 
 static int dopath(const char *filename, int depth, info_print_t *func)
@@ -47,8 +47,7 @@ static int dopath(const char *filename, int depth, info_print_t *func)
 		return(func(filename, FTW_DNR));
     
 	chdir(filename); 	// измененеие текущего рабочего каталога на filename
-	print_indent(depth);
-	printf("╘═══╤\n");
+	print_indent(depth); printf("╘═══╤\n");
 
 	struct dirent* dirp; // хранит № индексного узла + строка имени файла
 	// readdir - возвращает указатель на очередную запись 
@@ -60,9 +59,8 @@ static int dopath(const char *filename, int depth, info_print_t *func)
 			ret = dopath(dirp->d_name, depth + 1, func);
 			// запуск dopath для очередного файла из рассматриваемого каталога
 	}
-    
-	print_indent(depth+1);
-	printf("└\n");
+
+	print_indent(depth+1);	printf("└\n");
 	chdir("..");		// измененеие текущего рабочего каталога на родительский
 
 	if (closedir(dp) < 0)		// закрытие потока каталога
@@ -80,7 +78,7 @@ static int print_info(const char *pathame,  int type)
 			printf( "│ %s\n", pathame);
 			break;
 		case FTW_D: 
-			printf( "│ %s\n", pathame);
+			printf( "║ %s\n", pathame);
 			break;
 		case FTW_DNR:
 			perror("No acsess for catalog\n");
