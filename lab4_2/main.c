@@ -55,23 +55,29 @@ ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long 
 
 ssize_t fortune_read(struct file *file, char __user *buff, size_t count, loff_t *f_pos)
 {
-    int len;
+    int  ln = 0;
+    printk(KERN_INFO "ENTER_JOPA: ------------------------Jopa----------------------------");
 
     if (cookie_index == 0 || *f_pos > 0)
         return 0;
 
     if (next_fortune >= cookie_index)
         next_fortune = 0;
+    
+    printk(KERN_INFO "!!! %d !!!", (int)count);
 
-    printk(KERN_INFO "!!! %s !!! %d !!!", buff, (int)count);
-    len = snprintf(buff, count, "%s\n", &cookie_pot[next_fortune]);
-    //len = copy_to_user(buff, &cookie_pot[next_fortune], count);
+    // ln = sprintf(buff, "%s\n", &cookie_pot[next_fortune]);
+    // ln = copy_to_user(buff, &cookie_pot[next_fortune], count);
+
+    ln = strlen(&cookie_pot[next_fortune]);
+    copy_to_user(buff, &cookie_pot[next_fortune], ln);
 
     printk(KERN_INFO "readed");
-    next_fortune += len;
-    *f_pos += len; //
+    next_fortune += ln;
+    *f_pos += ln; //
 
-    return len;
+    printk(KERN_INFO "EXIT_JOPA: %d --------------------Jopa----------------------------", ln);
+    return ln;
 }
 
 
