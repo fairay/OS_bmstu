@@ -13,13 +13,10 @@
 #define PROC_FILE_NAME      "my_fortune"
 
 static struct proc_dir_entry *proc_file;
-/*static struct proc_dir_entry *proc_slink;
-static struct proc_dir_entry *proc_dir;*/
 
-
-static char* cookie_pot;    // хранилище фортунок
-static int cookie_index, next_fortune;  /* индекс первого свободного для записи элемента хранилища
-                                           индекс элемента хранилища, содержащего следующую фортунку для вывода по запросу*/
+static char* cookie_pot;
+static int cookie_index;  
+static int next_fortune;
 
 
 ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long len, loff_t *f_pos);
@@ -32,51 +29,41 @@ ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long 
 {
     int free_space = (MAX_COOKIE_LENGTH - cookie_index) + 1;
 
-    if (free_space < len)   // достаточно ли места для размещения фортунки
+    if (free_space < len + 1)
     {
         printk(KERN_ERR "my_fortune: cookie_pot is overflowed");
         return -EFAULT;
     }
 
-    if (copy_from_user(&cookie_pot[cookie_index], buff, len)) // если место есть, то строка копируется в cookie_pot
-    // if (snprintf(&cookie_pot[cookie_index], len, "%s", buff) < 0)
+    if (copy_from_user(&cookie_pot[cookie_index], buff, len))
     {
         printk(KERN_INFO "my_fortune: copy_from_user error");
         return -EFAULT;
     }
-    printk(KERN_INFO "writed");
 
-    cookie_index += len;
+    cookie_index += len + 1;
+    cookie_pot[cookie_index - 2] = '\n';
     cookie_pot[cookie_index - 1] = 0;
-    printk(KERN_INFO "%s", &cookie_pot[cookie_index - len]);
 
-    return len;     // количество символов фактически записанных в cookie_pot
+    return len; 
 }
 
 ssize_t fortune_read(struct file *file, char __user *buff, size_t count, loff_t *f_pos)
 {
     int  ln = 0;
-    printk(KERN_INFO "ENTER_JOPA: ------------------------Jopa----------------------------");
 
     if (cookie_index == 0 || *f_pos > 0)
         return 0;
 
     if (next_fortune >= cookie_index)
-        next_fortune = 0;
+        return 0;
     
-    printk(KERN_INFO "!!! %d !!!", (int)count);
-
-    // ln = sprintf(buff, "%s\n", &cookie_pot[next_fortune]);
-    // ln = copy_to_user(buff, &cookie_pot[next_fortune], count);
-
     ln = strlen(&cookie_pot[next_fortune]);
     copy_to_user(buff, &cookie_pot[next_fortune], ln);
 
-    printk(KERN_INFO "readed");
-    next_fortune += ln;
-    *f_pos += ln; //
+    next_fortune += ln + 1;
+    *f_pos += ln + 1;
 
-    printk(KERN_INFO "EXIT_JOPA: %d --------------------Jopa----------------------------", ln);
     return ln;
 }
 
