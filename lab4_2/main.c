@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
+#include <linux/seq_file.h>
 
 #include <linux/uaccess.h>
 #include <asm/uaccess.h>
@@ -11,13 +12,15 @@
 
 #define MAX_COOKIE_LENGTH   PAGE_SIZE
 #define PROC_FILE_NAME      "my_fortune"
+#define PROC_DIR_NAME       "my_dir"
+#define PROC_SLINK_NAME     "my_slink"
 
 static struct proc_dir_entry *proc_file;
 
 static char* cookie_pot;
 static int cookie_index;  
 static int next_fortune;
-
+char add_str[20] = "aaaaa\n";
 
 ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long len, loff_t *f_pos);
 ssize_t fortune_read(struct file *file, char __user *buff, size_t count, loff_t *f_pos);
@@ -41,10 +44,14 @@ ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long 
         return -EFAULT;
     }
 
-    cookie_index += len + 1;
-    cookie_pot[cookie_index - 2] = '\n';
+    cookie_index += len;
+    cookie_pot[cookie_index - 1] = '_';
+    strcat(cookie_pot, add_str);
+
+    cookie_index += 7;
     cookie_pot[cookie_index - 1] = 0;
 
+    printk(KERN_INFO "proc my_writed\n");
     return len; 
 }
 
@@ -64,13 +71,26 @@ ssize_t fortune_read(struct file *file, char __user *buff, size_t count, loff_t 
     next_fortune += ln + 1;
     *f_pos += ln + 1;
 
+    printk(KERN_INFO "proc my_readed\n");
     return ln;
 }
 
+static int simple_proc_open(struct inode *sp_inode, struct file *sp_file)
+{
+    printk(KERN_INFO "proc called open\n");
+    return 0;
+}
+static int simple_proc_release(struct inode *sp_inode, struct file *sp_file)
+{
+    printk(KERN_INFO "proc called release\n");
+    return 0;
+}
 
 static struct file_operations fops = 
 {
     .owner = THIS_MODULE,
+    .open = simple_proc_open,
+    .release = simple_proc_release,
     .read = fortune_read,
     .write = fortune_write,
 };
@@ -97,26 +117,30 @@ static int __init init_fortune_module(void)
         return -ENOMEM;
     }
 
-    proc_mkdir("my_dir", NULL);
-    proc_symlink("my_slink", NULL, "/proc/my_fortune");
+    proc_mkdir(PROC_DIR_NAME, NULL);
+    proc_symlink(PROC_SLINK_NAME, NULL, "/proc/my_fortune");
 
     cookie_index = 0;
     next_fortune = 0;
 
-    printk(KERN_INFO "===== Fortune module loaded! =====");
+    printk(KERN_INFO "Fortune module loaded!");
 
     return 0;
 }
 
 static void __exit exit_fortune_module(void)
 {
-    //if (proc_file)
+    if (proc_file)
+    {
         remove_proc_entry(PROC_FILE_NAME, NULL);
+        remove_proc_entry(PROC_DIR_NAME, NULL);
+        remove_proc_entry(PROC_SLINK_NAME, NULL);
+    }
 
     if (cookie_pot)
         vfree(cookie_pot);
 
-    printk(KERN_INFO "===== Fortune module unloaded! =====");
+    printk(KERN_INFO "Fortune module unloaded!");
 }
 
 
