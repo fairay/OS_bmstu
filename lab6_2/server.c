@@ -6,65 +6,18 @@
 
 #define CLIENT_N    5
 
-/*
-int sock;
-
-void close_socket()
+void close_sockets(int *sock_arr, int main_sock)
 {
-    close(sock);
-    unlink(SOCK_NAME);
+    for (int i=0; i<CLIENT_N; i++)
+        close(sock_arr[i]);
+    close(main_sock);
 }
 
 void sigint_action(int signum)
 {
     printf("\nInterrupt signal received, closing server\n");
-    close_socket();
     exit(0);
 }
-
-int main() 
-{
-    char buf[BUF_SIZE];
-    struct sockaddr srvr_name;
-
-    sock = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if (sock < 0) 
-    {
-        perror("socket failed\n");
-        return EXIT_FAILURE;
-    }
-
-    srvr_name.sa_family = AF_UNIX;
-    strcpy(srvr_name.sa_data, SOCK_NAME);
-
-    if (bind(sock, &srvr_name, sizeof(srvr_name)) < 0)
-    {
-        close(sock);
-        perror("bind failed\n");
-        return EXIT_FAILURE;
-    }
-
-    printf("Socket linked, server listening\n");
-
-    signal(SIGINT, sigint_action);
-
-    while (1)
-    {
-        int bytes = recvfrom(sock, buf, sizeof(buf), 0, NULL, NULL);
-        if (bytes < 0)
-        {
-            close_socket();
-            printf("recvfrom failed, closing server\n");
-            return EXIT_FAILURE;
-        }
-
-        buf[bytes] = '\0';
-        printf("Server received: %s\n", buf);
-    }
-
-    return 0;
-}
-*/
 
 int* empty_socket(int *client_sock)
 {
@@ -78,10 +31,7 @@ int* empty_socket(int *client_sock)
 
 int new_client(int sock, int* new_ptr)
 {
-    struct sockaddr_in cli_addr;
-    int clen = sizeof(cli_addr);
-    
-    int new_sock = accept(sock, (struct sockaddr*) &cli_addr, &clen);
+    int new_sock = accept(sock, NULL, NULL);
     if (new_sock < 0)
         return EXIT_FAILURE;
     
@@ -89,24 +39,21 @@ int new_client(int sock, int* new_ptr)
     return EXIT_SUCCESS;
 }
 
-int recv_client(int* sock_ptr)
+void recv_client(int* sock_ptr, int client_id)
 {
     char buf[BUF_SIZE];
-    struct sockaddr_in cli_addr;
-    int clen = sizeof(cli_addr);
-
-    int bytes = recvfrom(*sock_ptr, buf, sizeof(buf), 0, (struct sockaddr*) &cli_addr, &clen);
+    int bytes = recvfrom(*sock_ptr, buf, sizeof(buf), 0, NULL, NULL);
     if (bytes <= 0)
     {
-        printf("!!! %ud\n", cli_addr.sin_port);
+        printf("Client №%d disconnected\n", client_id);
         close(*sock_ptr);
         *sock_ptr = 0;
-        return EXIT_FAILURE;
+    } 
+    else 
+    {
+        buf[bytes] = '\0';
+        printf("Server received: %s\n", buf);
     }
-
-    buf[bytes] = '\0';
-    printf("Server received: %s\n", buf);
-    return EXIT_SUCCESS;
 }
 
 int main(void)
@@ -131,7 +78,7 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    if (listen(sock, 3))
+    if (listen(sock, CLIENT_N))
     {
         close(sock);
         perror("listen failed\n");
@@ -146,6 +93,7 @@ int main(void)
     fd_set sock_set;
     int max_sock;
 
+    signal(SIGINT, sigint_action);
     while (1)
     {
         struct timeval interval = {10, 0};
@@ -165,13 +113,13 @@ int main(void)
         int code = select(max_sock+1, &sock_set, NULL, NULL, &interval);
         if (code == 0)
         {
-            close(sock);
+            close_sockets(client_sock, sock);
             printf("server closed\n");
             return 0;
         }
         else if (code < 0)
         {
-            close(sock);
+            close_sockets(client_sock, sock);
             perror("select failed\n");
             return EXIT_FAILURE;
         }
@@ -180,7 +128,7 @@ int main(void)
         {
             if (new_client(sock, empty_socket(client_sock)) == EXIT_FAILURE)
             {
-                close(sock);
+                close_sockets(client_sock, sock);
                 perror("aceept failed\n");
                 return EXIT_FAILURE;
             }
@@ -189,9 +137,10 @@ int main(void)
         for (int i=0; i<CLIENT_N; i++)
         {
             if (client_sock[i] && FD_ISSET(client_sock[i], &sock_set))
-                recv_client(&client_sock[i]);
+                recv_client(&client_sock[i], i);
         }
     }
-    
+
+    close_sockets(client_sock, sock);
     return 0;
 }
