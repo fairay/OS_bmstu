@@ -29,32 +29,6 @@ int* empty_socket(int *client_sock)
     return NULL;
 }
 
-int new_client(int sock, int* new_ptr)
-{
-    int new_sock = accept(sock, NULL, NULL);
-    if (new_sock < 0)
-        return EXIT_FAILURE;
-    
-    *new_ptr = new_sock;
-    return EXIT_SUCCESS;
-}
-
-void recv_client(int* sock_ptr, int client_id)
-{
-    char buf[BUF_SIZE];
-    int bytes = recvfrom(*sock_ptr, buf, sizeof(buf), 0, NULL, NULL);
-    if (bytes <= 0)
-    {
-        printf("Client №%d disconnected\n", client_id);
-        close(*sock_ptr);
-        *sock_ptr = 0;
-    } 
-    else 
-    {
-        buf[bytes] = '\0';
-        printf("Server received: %s\n", buf);
-    }
-}
 
 int main(void)
 {
@@ -126,18 +100,35 @@ int main(void)
 
         if (FD_ISSET(sock, &sock_set))
         {
-            if (new_client(sock, empty_socket(client_sock)) == EXIT_FAILURE)
+            int new_sock = accept(sock, NULL, NULL);
+            if (new_sock < 0)
             {
                 close_sockets(client_sock, sock);
                 perror("aceept failed\n");
                 return EXIT_FAILURE;
             }
+            
+            *empty_socket(client_sock) = new_sock;
         }
 
         for (int i=0; i<CLIENT_N; i++)
         {
             if (client_sock[i] && FD_ISSET(client_sock[i], &sock_set))
-                recv_client(&client_sock[i], i);
+            {
+                char buf[BUF_SIZE];
+                int bytes = recvfrom(client_sock[i], buf, sizeof(buf), 0, NULL, NULL);
+                if (bytes <= 0)
+                {
+                    printf("Client №%d disconnected\n", i);
+                    close(client_sock[i]);
+                    client_sock[i] = 0;
+                } 
+                else 
+                {
+                    buf[bytes] = '\0';
+                    printf("Server received: %s\n", buf);
+                }
+            }
         }
     }
 
