@@ -69,7 +69,6 @@
 ``` console
 // Для версии с кэшированием также можно вызвать следующую команду для просмотра информации про my_cache
 // Формат вывода: # name   <active_objs> <num_objs> <objsize> ... 
-// Обращается внимание на то, что размер элементов тут равен 16, хотя в проге задавали 7 (возможно, это из-за эффекта выравнивания)
 
 # cat /proc/slabinfo | grep my_cache
 my_cache        256    256     16  256    1 : tunables    0    0    0 : slabdata      1      1      0
@@ -82,7 +81,38 @@ my_cache        256    256     16  256    1 : tunables    0    0    0 : slabdata
 **unregister_filesystem(&myfs_type)** - системный вызов дерегистрации ФС.  
 В обоих случаях используется указатель на структуру file_system_type, которая описывает ФС.
 
-...
+``` C
+// mount a filesystem residing on a block device
+struct dentry *mount_bdev(struct file_system_type *fs_type, int flags, const char *dev_name, void *data, int (*fill_super)(struct super_block*, void*, int))
+
+// fs_type - структура, описывающая ФС
+// dev_name - имя ФС
+// fill_super - функция инициализации суперблока
+```
+
+### Slab-кэши
+
+``` C
+// Создание нового слаба
+struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t offset, unsigned long flags, void (*ctor)(void*));  
+
+// name - имя кэша
+// size - размер элементов
+// offset - смещение первого элемента от начала кэша
+// flags - параметры
+// ctor - конструктор, вызывается при размещении каждого элемента
+
+// Уничтожение слаба (код ошибки указывает на вид утечки памяти)
+int kmem_cache_destroy(kmem_cache_t *cache)
+
+// Выделение объектов кэша
+void* kmem_cache_alloc(kmem_cache_t *cache, int kmflag)
+
+// Освобождение объектов кэша
+void kmem_cache_free( kmem_cache_t *cache, const void *obj);
+// obj - указатель на освобождаемый объект
+
+```
 
 ## Теория
 
@@ -123,3 +153,4 @@ directory entry - элемент каталога (компоненты пути
 ## Источники
 
 1. <http://opennet.ru/base/dev/virtual_fs.txt> - то, на что ссылается сама Рязань в методичке. По сути - настоящий кладезь.
+2. <http://www.opennet.ru/docs/RUS/lki/lki-3.html>

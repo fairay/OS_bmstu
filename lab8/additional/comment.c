@@ -6,87 +6,121 @@
 #include <linux/fs.h>
 #include <linux/time.h>
 
+// Магическое число
+// По нему драйвер ФС проверяет, что на диске именно та самая ФС, а не что-то другое
+// Можно сказать, что это некий секретный ключ
 #define MYFS_MAGIC_NUMBER	0x13131313
-#define SLABNAME			"my_cache"
 
-struct kmem_cache *my_cache = NULL;
-static void* *line = NULL;
+// Определения и переменные для кэша
+#define SLABNAME			"my_cache"	// имя
+struct kmem_cache *my_cache = NULL;		// сам slab-cache
+static int sco=0;						// счётчик вызова конструктора
 
-static int sco=0;
-static int number=1000;
-static int size=7;
-
-void co(void* p) 
-{ 
-	*(int*)p = (int)p; 
-	sco++; 
-} 
-
-
+// Собственный inode
 struct myfs_inode
 {
      int i_mode;
      unsigned long i_ino;
 } myfs_inode;
 
+// Переменные для кэшируемых объектов
+static void* *line = NULL;				// массив 
+static int number = 31;					// количество
+static int size = sizeof(struct myfs_inode); // размер в байтах
+static int cache_pos=0;					// позиция незанятого элемента кэша
+
+// Конструктор элемента кэша
+void co(void* p) 
+{ 
+	*(int*)p = (int)p; 	// хз зачем, если убрать ничего не изменится
+	sco++; 				// +1 счётчик вызова конструктора
+} 
+
+
+// Функция, вызываемая в конце umount
 static void myfs_put_super(struct super_block * sb)
 {
 	printk(KERN_INFO "MYFS super block destroyed!\n" );
 }
 
 static struct super_operations const myfs_super_ops = {
-	.put_super = myfs_put_super,
-	.statfs = simple_statfs,
-	.drop_inode = generic_delete_inode,
+	.put_super = myfs_put_super, // вызывается на последней стадии работы umount, освобождает всё содержимое
+	.statfs = simple_statfs,	// реализация системного вызова fstatfs/statfs
+								// simple_statfs - заглушка из стандартной библиотеки 
+	.drop_inode = generic_delete_inode, //
 };
 
+// Получение незанятого элемента кэша
+void* get_slab_mem(void)
+{
+	if (cache_pos >= number) 
+		return NULL; // Если всё занято - вернуть NULL
+	else
+		return line[cache_pos++]; // Вернуть свободный, сдвинуть позицию незанятого
+}
+
+// Инициализация нового inode 
 static struct inode* myfs_make_inode(struct super_block *sb, int mode)
 {
-	struct inode *ret = new_inode(sb);
+	struct inode *ret = new_inode(sb);		// Размещение (создание) новго inode для заданного суперблока
+	struct myfs_inode *_inode = get_slab_mem();	// Получение свободного элемента кэша для собственной структуры inode
 
 	if (ret)
 	{
-		inode_init_owner(ret, NULL, mode);
-		ret->i_size = PAGE_SIZE;
-		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
-		ret->i_private = &myfs_inode;
+		inode_init_owner(ret, NULL, mode);	// Инициирование значений uid,gid,mode 
+		if (_inode)
+		{
+			_inode->i_mode = ret->i_mode;	// Дублирование информации
+			_inode->i_ino = ret->i_ino;
+		}
+
+		ret->i_size = PAGE_SIZE;			// размер файла равен 4Кб
+		// время последнего изменения, доступа, изменения индекса = текущее время
+		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);	
+		ret->i_private = _inode;	// Поле приватной информации
 	}
+
+	printk(KERN_INFO "new inode created\n");
 	return ret;
 }
 
 
+// Инициализация суперблока
 static int myfs_fill_sb(struct super_block* sb, void* data, int silent)
-{
-	struct inode* root = NULL;
-	sb->s_blocksize = PAGE_SIZE;
-	sb->s_blocksize_bits = PAGE_SHIFT;
-	sb->s_magic = MYFS_MAGIC_NUMBER;
-	sb->s_op = &myfs_super_ops;
+{	
+	struct inode* root = NULL;			// inode корневого каталога
+	sb->s_blocksize = PAGE_SIZE;		// Размер блока 
+	sb->s_blocksize_bits = PAGE_SHIFT;  // Количество бит, необходимое для хранения размера блока
+	sb->s_magic = MYFS_MAGIC_NUMBER;	// Магическое число (см выше)
+	sb->s_op = &myfs_super_ops;			// Набор операций над суперблоком
 
-	root =  myfs_make_inode(sb, S_IFDIR | 0755);
+	root =  myfs_make_inode(sb, S_IFDIR | 0755);	// Инициализация inode, S_IFDIR <=> каталог
 	if (!root)
 	{
 		printk (KERN_ERR "MYFS inode allocation failed !\n") ; 
 		return -ENOMEM;
 	}
 
-	root->i_op  =  &simple_dir_inode_operations;
-	root->i_fop = &simple_dir_operations;
-	sb->s_root  = d_make_root(root) ;
+	root->i_op  =  &simple_dir_inode_operations;	// Операции с inode
+	root->i_fop = &simple_dir_operations;			// Операции с файлом
+	sb->s_root  = d_make_root(root);				// Cоздание dentry по корневому inode
+	
 
 	if (!sb->s_root)
 	{
 		printk(KERN_ERR "MYFS root creation failed !\n") ; 
-		iput(root);
+		iput(root);	// Сброс inode
 		return -ENOMEM;
 	}
 
 	return 0;
 }
 
+// Функция монтирования ФС, вызывается по команде mount
 static struct dentry* myfs_mount (struct file_system_type *type, int flags, 
 									char const *dev, void *data)
 {
+	// см readme
 	struct dentry* const entry = mount_bdev(type,  flags,  dev,  data, myfs_fill_sb);
 
 	if (IS_ERR(entry))
@@ -97,10 +131,10 @@ static struct dentry* myfs_mount (struct file_system_type *type, int flags,
 }
 
 static struct file_system_type myfs_type  =  {
-	.owner  =  THIS_MODULE,
-	.name  =  "myfs",
-	.mount  =  myfs_mount,
-	.kill_sb  =  kill_block_super,
+	.owner  =  THIS_MODULE,		// указатель на модуль реализации ФС
+	.name  =  "myfs",			// имя ФС
+	.mount  =  myfs_mount,		// функция монтирования ФС
+	.kill_sb  =  kill_block_super, // функция демонтирования ФС
 };
 
 static int __init md_init(void) 

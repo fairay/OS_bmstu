@@ -12,22 +12,22 @@
 struct kmem_cache *my_cache = NULL;
 static void* *line = NULL;
 
+struct myfs_inode
+{
+     int i_mode;
+     unsigned long i_ino;
+};
+
 static int sco=0;
-static int number=1000;
-static int size=7;
+static int number=31;
+static int size=sizeof(struct myfs_inode);
+static int cache_pos=0;
 
 void co(void* p) 
 { 
 	*(int*)p = (int)p; 
 	sco++; 
 } 
-
-
-struct myfs_inode
-{
-     int i_mode;
-     unsigned long i_ino;
-} myfs_inode;
 
 static void myfs_put_super(struct super_block * sb)
 {
@@ -40,17 +40,33 @@ static struct super_operations const myfs_super_ops = {
 	.drop_inode = generic_delete_inode,
 };
 
+void* get_slab_mem(void)
+{
+	if (cache_pos >= number)
+		return NULL;
+	else
+		return line[cache_pos++];
+}
+
 static struct inode* myfs_make_inode(struct super_block *sb, int mode)
 {
 	struct inode *ret = new_inode(sb);
+	struct myfs_inode *_inode = get_slab_mem();
+	if (_inode)
+	{
+		_inode->i_mode = ret->i_mode;
+		_inode->i_ino = ret->i_ino;
+	}
 
 	if (ret)
 	{
 		inode_init_owner(ret, NULL, mode);
 		ret->i_size = PAGE_SIZE;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
-		ret->i_private = &myfs_inode;
+		ret->i_private = _inode;
 	}
+
+	printk(KERN_INFO "new inode created\n");
 	return ret;
 }
 
