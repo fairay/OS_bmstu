@@ -142,14 +142,14 @@ static int __init md_init(void)
 	int i, j;
 	int ret;
 
-	line = kmalloc(sizeof(void*) * number, GFP_KERNEL); 
+	line = kmalloc(sizeof(void*) * number, GFP_KERNEL); // выделение памяти под массив элементов кэша
 	if (!line) 
 	{ 
 		printk(KERN_ERR "kmalloc error\n" ); 
 		return -ENOMEM;
 	}
 
-	my_cache = kmem_cache_create(SLABNAME, size, 0, 0, co);
+	my_cache = kmem_cache_create(SLABNAME, size, 0, 0, co);	// создание slab-кэша 
 	if (!my_cache)
 	{
 		printk(KERN_ERR "Cache create failed\n");
@@ -159,7 +159,7 @@ static int __init md_init(void)
 	
 	for(i=0; i < number; i++) 
 	{
-		line[i] = kmem_cache_alloc(my_cache, GFP_KERNEL);
+		line[i] = kmem_cache_alloc(my_cache, GFP_KERNEL);	// создание элемента кэша
 		if(!line[i])
 		{ 
 			printk(KERN_ERR "kmem_cache_alloc error\n" );
@@ -171,7 +171,7 @@ static int __init md_init(void)
 		}
 	}
 
-	ret = register_filesystem(&myfs_type);
+	ret = register_filesystem(&myfs_type);		// регистрация ФС
 	if (ret < 0)
 	{
 		printk(KERN_ERR "Filesystem register failed\n");
@@ -195,10 +195,11 @@ static void __exit md_exit(void)
 	int j, ret;
 	for (j=0; j < number; j++)
 		kmem_cache_free(my_cache, line[j]);
-	kmem_cache_destroy(my_cache);
+	if (kmem_cache_destroy(my_cache) < 0)
+		printk(KERN_ERR "Cache destroy failed\n");
 	kfree(line);
 
-	ret = unregister_filesystem(&myfs_type);
+	ret = unregister_filesystem(&myfs_type);		// Дерегистрация 
 	if (ret)
 		printk(KERN_ERR "Filesystem unregister failed\n");
 	
