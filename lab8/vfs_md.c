@@ -103,7 +103,7 @@ static int myfs_fill_sb(struct super_block* sb, void* data, int silent)
 static struct dentry* myfs_mount (struct file_system_type *type, int flags, 
 									char const *dev, void *data)
 {
-	struct dentry* const entry = mount_bdev(type,  flags,  dev,  data, myfs_fill_sb);
+	struct dentry* const entry = mount_nodev(type, flags, data, myfs_fill_sb);
 
 	if (IS_ERR(entry))
 		printk(KERN_ERR  "MYFS mounting failed !\n") ;
@@ -116,7 +116,7 @@ static struct file_system_type myfs_type  =  {
 	.owner  =  THIS_MODULE,
 	.name  =  "myfs",
 	.mount  =  myfs_mount,
-	.kill_sb  =  kill_block_super,
+	.kill_sb  =  kill_anon_super,
 };
 
 static int __init md_init(void) 
@@ -139,10 +139,11 @@ static int __init md_init(void)
 		return -ENOMEM;
 	}
 	
-	for(i=0; i < number; i++) 
+	for (i=0; i < number; i++) 
 	{
 		line[i] = kmem_cache_alloc(my_cache, GFP_KERNEL);
-		if(!line[i])
+		// printk("VFS_MD: %d \t %d", i+1, sco);
+		if (!line[i])
 		{ 
 			printk(KERN_ERR "kmem_cache_alloc error\n" );
 			for (j=0; j < i; j++)

@@ -67,7 +67,7 @@ static struct inode* myfs_make_inode(struct super_block *sb, int mode)
 
 	if (ret)
 	{
-		inode_init_owner(ret, NULL, mode);	// Инициирование значений uid,gid,mode 
+		inode_init_owner(ret, NULL, mode);	// Инициирование значений uid, gid, mode
 		if (_inode)
 		{
 			_inode->i_mode = ret->i_mode;	// Дублирование информации
@@ -77,10 +77,9 @@ static struct inode* myfs_make_inode(struct super_block *sb, int mode)
 		ret->i_size = PAGE_SIZE;			// размер файла равен 4Кб
 		// время последнего изменения, доступа, изменения индекса = текущее время
 		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);	
-		ret->i_private = _inode;	// Поле приватной информации
+		ret->i_private = _inode;			// Поле приватной информации
+		printk(KERN_INFO "new inode created\n");
 	}
-
-	printk(KERN_INFO "new inode created\n");
 	return ret;
 }
 
@@ -94,21 +93,20 @@ static int myfs_fill_sb(struct super_block* sb, void* data, int silent)
 	sb->s_magic = MYFS_MAGIC_NUMBER;	// Магическое число (см выше)
 	sb->s_op = &myfs_super_ops;			// Набор операций над суперблоком
 
-	root =  myfs_make_inode(sb, S_IFDIR | 0755);	// Инициализация inode, S_IFDIR <=> каталог
+	root = myfs_make_inode(sb, S_IFDIR | 0755);	// Инициализация inode, S_IFDIR <=> каталог
 	if (!root)
 	{
 		printk (KERN_ERR "MYFS inode allocation failed !\n") ; 
 		return -ENOMEM;
 	}
 
-	root->i_op  =  &simple_dir_inode_operations;	// Операции с inode
-	root->i_fop = &simple_dir_operations;			// Операции с файлом
-	sb->s_root  = d_make_root(root);				// Cоздание dentry по корневому inode
-	
+	root->i_op = &simple_dir_inode_operations;	// Операции с inode
+	root->i_fop = &simple_dir_operations;		// Операции с файлом
+	sb->s_root = d_make_root(root);				// Cоздание dentry по корневому inode
 
 	if (!sb->s_root)
 	{
-		printk(KERN_ERR "MYFS root creation failed !\n") ; 
+		printk(KERN_ERR "MYFS root creation failed !\n");
 		iput(root);	// Сброс inode
 		return -ENOMEM;
 	}
@@ -121,7 +119,7 @@ static struct dentry* myfs_mount (struct file_system_type *type, int flags,
 									char const *dev, void *data)
 {
 	// см readme
-	struct dentry* const entry = mount_bdev(type,  flags,  dev,  data, myfs_fill_sb);
+	struct dentry* const entry = mount_nodev(type, flags, data, myfs_fill_sb);
 
 	if (IS_ERR(entry))
 		printk(KERN_ERR  "MYFS mounting failed !\n") ;
@@ -130,11 +128,12 @@ static struct dentry* myfs_mount (struct file_system_type *type, int flags,
 	return entry;
 }
 
+// struct file_system_type описывает создаваемую нами ФС
 static struct file_system_type myfs_type  =  {
-	.owner  =  THIS_MODULE,		// указатель на модуль реализации ФС
-	.name  =  "myfs",			// имя ФС
-	.mount  =  myfs_mount,		// функция монтирования ФС
-	.kill_sb  =  kill_block_super, // функция демонтирования ФС
+	.owner = THIS_MODULE,		// указатель на модуль реализации ФС
+	.name = "myfs",				// имя ФС
+	.mount = myfs_mount,		// функция монтирования ФС
+	.kill_sb = kill_anon_super, // функция демонтирования ФС
 };
 
 static int __init md_init(void) 
@@ -143,6 +142,7 @@ static int __init md_init(void)
 	int ret;
 
 	line = kmalloc(sizeof(void*) * number, GFP_KERNEL); // выделение памяти под массив элементов кэша
+	// GFP_KERNEL - запрос на выделение памяти от текущего процесса
 	if (!line) 
 	{ 
 		printk(KERN_ERR "kmalloc error\n" ); 

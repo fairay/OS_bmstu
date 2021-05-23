@@ -82,11 +82,11 @@ my_cache        256    256     16  256    1 : tunables    0    0    0 : slabdata
 В обоих случаях используется указатель на структуру file_system_type, которая описывает ФС.
 
 ``` C
-// mount a filesystem residing on a block device
-struct dentry *mount_bdev(struct file_system_type *fs_type, int flags, const char *dev_name, void *data, int (*fill_super)(struct super_block*, void*, int))
+// mount a filesystem that is not backed by a device
+struct dentry *mount_nodev(struct file_system_type *fs_type, int flags, void *data, 
+int (*fill_super)(struct super_block *, void *, int))
 
 // fs_type - структура, описывающая ФС
-// dev_name - имя ФС
 // fill_super - функция инициализации суперблока
 ```
 
