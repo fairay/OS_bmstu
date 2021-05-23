@@ -31,7 +31,7 @@ void co(void* p)
 
 static void myfs_put_super(struct super_block * sb)
 {
-	printk(KERN_INFO "MYFS super block destroyed!\n" );
+	printk(KERN_INFO "VFS super block destroyed!\n" );
 }
 
 static struct super_operations const myfs_super_ops = {
@@ -82,7 +82,7 @@ static int myfs_fill_sb(struct super_block* sb, void* data, int silent)
 	root =  myfs_make_inode(sb, S_IFDIR | 0755);
 	if (!root)
 	{
-		printk (KERN_ERR "MYFS inode allocation failed !\n") ; 
+		printk (KERN_ERR "VFS inode allocation failed !\n") ; 
 		return -ENOMEM;
 	}
 
@@ -92,7 +92,7 @@ static int myfs_fill_sb(struct super_block* sb, void* data, int silent)
 
 	if (!sb->s_root)
 	{
-		printk(KERN_ERR "MYFS root creation failed !\n") ; 
+		printk(KERN_ERR "VFS root creation failed !\n") ; 
 		iput(root);
 		return -ENOMEM;
 	}
@@ -106,9 +106,9 @@ static struct dentry* myfs_mount (struct file_system_type *type, int flags,
 	struct dentry* const entry = mount_nodev(type, flags, data, myfs_fill_sb);
 
 	if (IS_ERR(entry))
-		printk(KERN_ERR  "MYFS mounting failed !\n") ;
+		printk(KERN_ERR  "VFS mounting failed !\n") ;
 	else
-		printk(KERN_INFO "MYFS mounted!\n") ;
+		printk(KERN_INFO "VFS mounted!\n") ;
 	return entry;
 }
 
