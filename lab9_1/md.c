@@ -17,15 +17,19 @@ struct tasklet_struct my_tasklet; // dynamic
 
 void my_tasklet_func(unsigned long data)
 {
+	printk(KERN_INFO "tasklet RUNNING: \t\tstate: %ld \tlink count: %d\n", my_tasklet.state, my_tasklet.count.counter);
 	printk("tasklet data: %s\n", (char*)data);
-	printk(KERN_INFO "tasklet info: \tstate: %ld \tlink count: %d\n", my_tasklet.state, my_tasklet.count.counter);
 }
 
 static irqreturn_t my_interrupt (int irq, void *dev_id)
 {
 	irq_counter++;
 	printk(KERN_INFO "ISR: counter = %d\n", irq_counter);
+
+	printk(KERN_INFO "tasklet BEFORE SCHEDULE: \tstate: %ld \tlink count: %d\n", my_tasklet.state, my_tasklet.count.counter);
 	tasklet_schedule(&my_tasklet);
+	printk(KERN_INFO "tasklet AFTER SCHEDULE: \t\tstate: %ld \tlink count: %d\n", my_tasklet.state, my_tasklet.count.counter);
+
 	return IRQ_HANDLED;
 }
 
@@ -41,9 +45,9 @@ static int __init md_init(void)
 
 static void __exit md_exit(void) 
 {
-	tasklet_kill(&my_tasklet);
 	synchronize_irq(irq);
 	free_irq(irq, &my_dev_id);
+	tasklet_kill(&my_tasklet);
 
 	printk(KERN_INFO "total amount of calls = %d\n", irq_counter);
 	printk(KERN_INFO "module is unloaded\n");

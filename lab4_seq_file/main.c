@@ -1,155 +1,127 @@
-#include <linux/vmalloc.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/proc_fs.h>
-#include <linux/string.h>
-#include <linux/seq_file.h>
-
-#include <linux/uaccess.h>
-#include <asm/uaccess.h>
-
-
-#define MAX_COOKIE_LENGTH   PAGE_SIZE
-#define PROC_FILE_NAME      "my_fortune"
-#define PROC_DIR_NAME       "my_dir"
-#define PROC_SLINK_NAME     "my_slink"
-
-static struct proc_dir_entry *proc_file;
-
-static char* cookie_pot;
-static int cookie_index;  
-static int next_fortune;
-char add_str[20] = "aaaaa\n";
-
-ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long len, loff_t *f_pos);
-ssize_t fortune_read(struct file *file, char __user *buff, size_t count, loff_t *f_pos);
-static int __init init_fortune_module(void);
-static void __exit exit_fortune_module(void);
-
-static int proc_hello_show(struct seq_file *m, void *v)
-{
-    int error = seq_printf(m, "%s\n", cookie_pot);
-    return error;
-}
-
-ssize_t fortune_write(struct file *file, const char __user *buff, unsigned long len, loff_t *f_pos)
-{
-    int free_space = (MAX_COOKIE_LENGTH - cookie_index) + 1;
-
-    if (free_space < len + 1)
-    {
-        printk(KERN_ERR "my_fortune: cookie_pot is overflowed");
-        return -EFAULT;
-    }
-
-    if (copy_from_user(&cookie_pot[cookie_index], buff, len))
-    {
-        printk(KERN_INFO "my_fortune: copy_from_user error");
-        return -EFAULT;
-    }
-
-    cookie_index += len;
-    cookie_pot[cookie_index - 1] = '_';
-    strcat(cookie_pot, add_str);
-
-    cookie_index += 7;
-    cookie_pot[cookie_index - 1] = 0;
-
-    printk(KERN_INFO "proc my_writed\n");
-    return len; 
-}
-
-ssize_t fortune_read(struct file *file, char __user *buff, size_t count, loff_t *f_pos)
-{
-    int  ln = 0;
-
-    if (cookie_index == 0 || *f_pos > 0)
-        return 0;
-
-    if (next_fortune >= cookie_index)
-        return 0;
-    
-    ln = strlen(&cookie_pot[next_fortune]);
-    copy_to_user(buff, &cookie_pot[next_fortune], ln);
-
-    next_fortune += ln + 1;
-    *f_pos += ln + 1;
-
-    printk(KERN_INFO "proc my_readed\n");
-    return ln;
-}
-
-static int simple_proc_open(struct inode *sp_inode, struct file *sp_file)
-{
-    printk(KERN_INFO "proc called open\n");
-    return 0;
-}
-static int simple_proc_release(struct inode *sp_inode, struct file *sp_file)
-{
-    printk(KERN_INFO "proc called release\n");
-    return 0;
-}
-
-static struct file_operations fops = 
-{
-    .owner = THIS_MODULE,
-    .open = simple_proc_open,
-    .release = simple_proc_release,
-    .read = fortune_read,
-    .write = fortune_write,
-};
-
-
-
-static int __init init_fortune_module(void)
-{
-    cookie_pot = vmalloc(MAX_COOKIE_LENGTH);
-    if (!cookie_pot)
-    {
-        printk(KERN_INFO "my_fortune: impossible to malloc cookie_pot");
-        return -ENOMEM;
-    }
-
-    memset(cookie_pot, 0, MAX_COOKIE_LENGTH);
-
-    proc_file = proc_create(PROC_FILE_NAME, 0666, NULL, &fops);
-
-    if (!proc_file)
-    {
-        vfree(cookie_pot);
-        printk(KERN_INFO "my_fortune: can't create proc entry");
-        return -ENOMEM;
-    }
-
-    proc_mkdir(PROC_DIR_NAME, NULL);
-    proc_symlink(PROC_SLINK_NAME, NULL, "/proc/my_fortune");
-
-    cookie_index = 0;
-    next_fortune = 0;
-
-    printk(KERN_INFO "Fortune module loaded!");
-
-    return 0;
-}
-
-static void __exit exit_fortune_module(void)
-{
-    if (proc_file)
-    {
-        remove_proc_entry(PROC_FILE_NAME, NULL);
-        remove_proc_entry(PROC_DIR_NAME, NULL);
-        remove_proc_entry(PROC_SLINK_NAME, NULL);
-    }
-
-    if (cookie_pot)
-        vfree(cookie_pot);
-
-    printk(KERN_INFO "Fortune module unloaded!");
-}
-
-
+#include<linux/module.h>
+#include<linux/init.h>
+#include<linux/proc_fs.h>
+#include<linux/sched.h>
+#include<linux/uaccess.h>
+#include<linux/fs.h>
+#include<linux/seq_file.h>
+#include<linux/slab.h>
+#include<linux/vmalloc.h>
 
 MODULE_LICENSE("GPL");
-module_init(init_fortune_module);
-module_exit(exit_fortune_module);
+
+static char *str = NULL;
+
+//индексы куда писать и откуда считывать
+unsigned int write_index;
+unsigned int read_index;
+
+#define COOKIE_POT_SIZE PAGE_SIZE  
+
+// https://elixir.bootlin.com/linux/v4.5/source/fs/seq_file.c#L410
+static int my_show(struct seq_file *m, void *v)
+{
+	printk(KERN_INFO "! Call my_show\n");
+	//seq_printf стандартная функция, выполняет действия, аналогичные copy_to_user или sprintf.
+
+//int seq_printf(struct seq_file *sfile, const char *fmt, ...);
+// Это эквивалент printf для реализаций seq_file; он принимает обычную строку формата и дополнительные аргументы значений. 
+// Однако, вы также должны передать ей структуру seq_file, которая передаётся в функцию show. 
+// Если seq_printf возвращает ненулевое значение, это означает, что буфер заполнен и вывод будет отброшен. Большинство реализаций, однако, игнорирует возвращаемое значение.
+	seq_printf(m, "Index is %u, message is %s\n", read_index, str + read_index);
+
+	int len = strlen(str + read_index);
+	if (len)
+		read_index += len + 1;
+	return 0;
+}
+
+static ssize_t my_write(struct file* file, const char __user *buffer, size_t count, loff_t *f_pos)
+{
+	printk(KERN_INFO "! Call my_write\n");
+	if (copy_from_user(&str[write_index], buffer, count)) // (куда, откуда, сколько байт)
+        return -EFAULT; //ошибка сегментирования (минус так как соглашение)
+
+    write_index += count;
+    str[write_index-1] = 0;
+
+    return count;
+}
+
+static int my_open(struct inode *inode, struct file *file)
+{
+	printk(KERN_INFO "! Call my_open\n");
+	// чтобы создать один файловый экземпляр модуля используется single_open который передаёт адрес функции my_show, а функция my_show передаёт адрес страницы памяти
+
+	return single_open(file, my_show, NULL);  // стандартная функция, может быть одновременно вызвана только одним процессом (чтобы открыть определенный файл) cat
+}
+
+
+static int my_release(struct inode *inode, struct file *file)
+{
+	printk(KERN_INFO "! Сall my_release\n");
+	return single_release(inode, file);  //выгружает seq file
+}
+
+static struct file_operations fortune_proc_ops={
+	//.proc_owner = THIS_MODULE,
+	.open = my_open,
+	.release = my_release,
+	.read = seq_read,
+	//.llseek = seq_lseek, 
+	.write = my_write
+};
+
+static int __init fortune_init(void)
+{
+	printk(KERN_INFO "! Call fortune init\n");
+
+	write_index = 0;
+	read_index = 0;
+
+	// выделить память для строки 
+    str = vmalloc(COOKIE_POT_SIZE);
+    if (!str)
+    {
+        printk(KERN_INFO "Error: can't malloc cookie buffer\n");
+        return -ENOMEM;
+    }
+    memset(str, 0, COOKIE_POT_SIZE); //заполняем строку нулями
+
+    //Чтобы работать с виртуальной файловой системой proc в ядре, в ядре определена структура 
+	struct proc_dir_entry *entry;
+	entry = proc_create("fortune", S_IRUGO | S_IWUGO, NULL, &fortune_proc_ops); //создаёт файл в виртуальной системе проц - имя файла, права доступа, указатель на родителя (если Null то создастся в корне), указатель на операции
+	if(!entry)
+	{
+		vfree(str);
+		printk(KERN_INFO "Error: can't create fortune file\n");
+        return -ENOMEM; // cd 02-evdev
+	}	
+
+    // создать каталог в файловой системе /proc 
+    proc_mkdir("cookie_dir", NULL);
+
+    // создать символическую ссылку на "/proc/fortune"
+    proc_symlink("cookie_symlink", NULL, "/proc/fortune");  
+
+	printk(KERN_INFO "Fortune module loaded successfully\n");
+	return 0;
+}
+
+static void __exit fortune_exit(void)
+{
+	printk(KERN_INFO "! Сall fortune exit\n");
+
+	remove_proc_entry("fortune", NULL);
+	remove_proc_entry("cookie_dir", NULL); //Чтобы работать с виртуальной файловой системой proc в ядре, в ядре определена структура 
+	remove_proc_entry("cookie_symlink", NULL);
+
+    if (str)
+        vfree(str);
+
+
+    printk(KERN_INFO "Fortune module unloaded\n"); //dmesq
+}
+
+module_init(fortune_init);
+module_exit(fortune_exit);
