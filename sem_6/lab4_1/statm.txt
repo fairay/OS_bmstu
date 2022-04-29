@@ -1,0 +1,7 @@
+1129        size
+201         resident
+185         shared
+2           trs (code)
+0           lib
+77          data 
+0           dt

@@ -1,0 +1,5 @@
+/dev/pts/0
+/dev/pts/0
+/dev/pts/0
+/proc/15694/fd
+/home/vsevolod/work/OS_bmstu/lab4_1/fd.txt

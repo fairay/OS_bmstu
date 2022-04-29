@@ -1,0 +1,18 @@
+561a7166e000-561a71670000 r-xp 00000000 08:02 396242                     /home/vsevolod/work/OS_bmstu/lab4_1/main.o
+561a7186f000-561a71870000 r--p 00001000 08:02 396242                     /home/vsevolod/work/OS_bmstu/lab4_1/main.o
+561a71870000-561a71871000 rw-p 00002000 08:02 396242                     /home/vsevolod/work/OS_bmstu/lab4_1/main.o
+561a72d7a000-561a72d9b000 rw-p 00000000 00:00 0                          [heap]
+7fcba3a33000-7fcba3c1a000 r-xp 00000000 08:02 1591587                    /lib/x86_64-linux-gnu/libc-2.27.so
+7fcba3c1a000-7fcba3e1a000 ---p 001e7000 08:02 1591587                    /lib/x86_64-linux-gnu/libc-2.27.so
+7fcba3e1a000-7fcba3e1e000 r--p 001e7000 08:02 1591587                    /lib/x86_64-linux-gnu/libc-2.27.so
+7fcba3e1e000-7fcba3e20000 rw-p 001eb000 08:02 1591587                    /lib/x86_64-linux-gnu/libc-2.27.so
+7fcba3e20000-7fcba3e24000 rw-p 00000000 00:00 0 
+7fcba3e24000-7fcba3e4d000 r-xp 00000000 08:02 1575138                    /lib/x86_64-linux-gnu/ld-2.27.so
+7fcba4038000-7fcba403a000 rw-p 00000000 00:00 0 
+7fcba404d000-7fcba404e000 r--p 00029000 08:02 1575138                    /lib/x86_64-linux-gnu/ld-2.27.so
+7fcba404e000-7fcba404f000 rw-p 0002a000 08:02 1575138                    /lib/x86_64-linux-gnu/ld-2.27.so
+7fcba404f000-7fcba4050000 rw-p 00000000 00:00 0 
+7ffce7cec000-7ffce7d0d000 rw-p 00000000 00:00 0                          [stack]
+7ffce7d14000-7ffce7d17000 r--p 00000000 00:00 0                          [vvar]
+7ffce7d17000-7ffce7d18000 r-xp 00000000 00:00 0                          [vdso]
+ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]
